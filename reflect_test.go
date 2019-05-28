@@ -49,6 +49,28 @@ func TestReflectWalker(t *testing.T) {
 
 		assert.Equal(t, x.FooBar, 1)
 	})
+
+	t.Run("Embedding", func(t *testing.T) {
+		type E2 struct{ F int }
+		type E1 struct {
+			E1 int
+			E2
+		}
+		var x struct {
+			X1 int
+			X2 int
+			E1
+		}
+
+		var rw reflectWalker
+		val, err := rw.Walk(reflect.ValueOf(&x), "F")
+		assert.NoError(t, err)
+		assert.That(t, val.IsValid())
+		val.Set(reflect.ValueOf(1))
+		rw.Commit()
+
+		assert.Equal(t, x.F, 1)
+	})
 }
 
 func BenchmarkReflectWalker(b *testing.B) {

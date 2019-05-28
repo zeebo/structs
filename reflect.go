@@ -53,10 +53,10 @@ func (r *reflectWalker) selectField(val reflect.Value, name string) (reflect.Val
 		}
 
 		// Allocate and walk those field indicies.
-		val = r.indirectAlloc(val.Field(idx))
 		for _, i := range buf {
 			val = r.indirectAlloc(val.Field(i))
 		}
+		val = r.indirectAlloc(val.Field(idx))
 
 		return val, nil
 
@@ -132,7 +132,7 @@ func searchEmbedded(typ reflect.Type, name string, buf []int) (int, []int, bool)
 	olen := len(buf)
 	for i := 0; i < nf && hadAnon; i++ {
 		field := typ.Field(i)
-		if !field.Anonymous {
+		if !field.Anonymous || field.PkgPath != "" {
 			continue
 		}
 
