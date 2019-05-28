@@ -1,51 +1,41 @@
 package structs
 
 import (
-	"fmt"
 	"reflect"
+	"sort"
+	"strconv"
 
 	"github.com/zeebo/errs"
 )
 
+// Result contains information about the result of a Decode.
 type Result struct {
 	Error   error
 	Missing []string
 	Broken  []string
 }
 
+// Option controls the operation of a Decode.
 type Option interface {
 	private()
 }
 
+// Decode takes values out of input and stores them into output, allocating as necessary.
 func Decode(input map[string]interface{}, output interface{}, opts ...Option) Result {
 	var ds decodeState
 	ds.decode(input, reflect.ValueOf(output), "")
 	return ds.res
 }
 
+// decodeState keeps state across recursive calls to decode.
 type decodeState struct {
 	res Result
 }
 
-func (d *decodeState) decode(input interface{}, output reflect.Value, base string) {
-	switch input := input.(type) {
-	case map[string]interface{}:
-		for key, value := range input {
-			d.decodeKeyValue(key, value, output, base)
-		}
-
-	case []interface{}:
-		for key, value := range input {
-			d.decodeKeyValue(fmt.Sprint(key), value, output, base)
-		}
-
-	default:
-		// TODO: scalar
-		output.Set(reflect.ValueOf(input))
-	}
-}
-
-func (d *decodeState) decodeKeyValue(key string, value interface{}, output reflect.Value, base string) {
+// decodeKeyValue decodes into output the value after walking through fields/indexing as described
+// by key. It returns true if anything was set. The base is the path the output is at with respect
+// to the top most decode.
+func (d *decodeState) decodeKeyValue(key string, value interface{}, output reflect.Value, base string) bool {
 	nextBase := dotJoin(base, key)
 
 	var rw reflectWalker
@@ -53,13 +43,51 @@ func (d *decodeState) decodeKeyValue(key string, value interface{}, output refle
 	if err != nil {
 		d.res.Broken = append(d.res.Broken, gatherKeys(value, nextBase, nil)...)
 		d.res.Error = errs.Combine(d.res.Error, err)
-		return
+		return false
 	}
 	if !field.IsValid() {
 		d.res.Missing = append(d.res.Missing, gatherKeys(value, nextBase, nil)...)
-		return
+		return false
 	}
 
-	d.decode(value, field, nextBase)
-	rw.Commit()
+	if d.decode(value, field, nextBase) {
+		rw.Commit()
+		return true
+	}
+	return false
+}
+
+// decode looks at the type of input and dispatches to helper routines to decode the input into
+// the output. It returns true if anything was set.
+func (d *decodeState) decode(input interface{}, output reflect.Value, base string) bool {
+	switch input := input.(type) {
+	case map[string]interface{}:
+		// Go through the keys in sorted order to avoid randomness
+		keys := make([]string, 0, len(input))
+		for key := range input {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+
+		any := false
+		for _, key := range keys {
+			any = d.decodeKeyValue(key, input[key], output, base) || any
+		}
+		return any
+
+	case []interface{}:
+		any := false
+		for key, value := range input {
+			any = d.decodeKeyValue(strconv.Itoa(key), value, output, base) || any
+		}
+		return any
+
+	default:
+		set, err := setValue(output, input)
+		if !set || err != nil {
+			d.res.Broken = append(d.res.Broken, gatherKeys(input, base, nil)...)
+			d.res.Error = errs.Combine(d.res.Error, err)
+		}
+		return set
+	}
 }

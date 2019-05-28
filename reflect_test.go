@@ -36,6 +36,19 @@ func TestReflectWalker(t *testing.T) {
 
 		assert.DeepEqual(t, x, []map[string]interface{}{3: {"f": 1}})
 	})
+
+	t.Run("Underscore", func(t *testing.T) {
+		var x struct{ FooBar int }
+
+		var rw reflectWalker
+		val, err := rw.Walk(reflect.ValueOf(&x), "foo-bar")
+		assert.NoError(t, err)
+		assert.That(t, val.IsValid())
+		val.Set(reflect.ValueOf(1))
+		rw.Commit()
+
+		assert.Equal(t, x.FooBar, 1)
+	})
 }
 
 func BenchmarkReflectWalker(b *testing.B) {

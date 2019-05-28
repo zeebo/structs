@@ -23,6 +23,9 @@ func (r *reflectWalker) Commit() {
 	r.cbs.Reset()
 }
 
+// removeHyphens removes hyphens from strings
+var removeHyphens = strings.NewReplacer("-", "")
+
 // Walk will walk the dotted path in the value allocating and descending through structs and
 // maps along the way.
 func (r *reflectWalker) Walk(val reflect.Value, path string) (out reflect.Value, err error) {
@@ -44,7 +47,7 @@ func (r *reflectWalker) selectField(val reflect.Value, name string) (reflect.Val
 	switch val.Kind() {
 	case reflect.Struct:
 		// Figure out the set of field indicies to walk to the name for the type.
-		idx, buf, ok := searchEmbedded(val.Type(), name, nil)
+		idx, buf, ok := searchEmbedded(val.Type(), removeHyphens.Replace(name), nil)
 		if !ok {
 			return reflect.Value{}, nil
 		}
@@ -64,6 +67,9 @@ func (r *reflectWalker) selectField(val reflect.Value, name string) (reflect.Val
 
 		// Sadly have to allocate a copy of the key to make it settable.
 		key, value := reflect.ValueOf(name), reflect.New(val.Type().Elem()).Elem()
+		if existing := val.MapIndex(key); existing.IsValid() {
+			value.Set(existing)
+		}
 		r.cbs.Append(func() { val.SetMapIndex(key, value) })
 		return value, nil
 
@@ -112,7 +118,7 @@ func searchEmbedded(typ reflect.Type, name string, buf []int) (int, []int, bool)
 			return i, buf, true
 		}
 
-		if field.Anonymous {
+		if field.Anonymous && field.PkgPath == "" {
 			hadAnon = true
 		}
 	}
