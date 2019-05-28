@@ -11,8 +11,9 @@ import (
 // Result contains information about the result of a Decode.
 type Result struct {
 	Error   error
-	Missing []string
-	Broken  []string
+	Used    map[string]struct{}
+	Missing map[string]struct{}
+	Broken  map[string]struct{}
 }
 
 // Option controls the operation of a Decode.
@@ -41,12 +42,12 @@ func (d *decodeState) decodeKeyValue(key string, value interface{}, output refle
 	var rw reflectWalker
 	field, err := rw.Walk(output, key)
 	if err != nil {
-		d.res.Broken = append(d.res.Broken, gatherKeys(value, nextBase, nil)...)
+		d.res.Broken = gatherKeys(value, nextBase, d.res.Broken)
 		d.res.Error = errs.Combine(d.res.Error, err)
 		return false
 	}
 	if !field.IsValid() {
-		d.res.Missing = append(d.res.Missing, gatherKeys(value, nextBase, nil)...)
+		d.res.Missing = gatherKeys(value, nextBase, d.res.Missing)
 		return false
 	}
 
@@ -85,8 +86,13 @@ func (d *decodeState) decode(input interface{}, output reflect.Value, base strin
 	default:
 		set, err := setValue(output, input)
 		if !set || err != nil {
-			d.res.Broken = append(d.res.Broken, gatherKeys(input, base, nil)...)
+			d.res.Broken = gatherKeys(input, base, d.res.Broken)
 			d.res.Error = errs.Combine(d.res.Error, err)
+		} else if set {
+			if d.res.Used == nil {
+				d.res.Used = make(map[string]struct{})
+			}
+			d.res.Used[base] = struct{}{}
 		}
 		return set
 	}

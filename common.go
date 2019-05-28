@@ -76,23 +76,26 @@ func dotJoin(base, part string) string {
 //
 //
 
-func gatherKeys(from interface{}, base string, buf []string) []string {
+func gatherKeys(from interface{}, base string, into map[string]struct{}) map[string]struct{} {
+	if into == nil {
+		into = make(map[string]struct{})
+	}
 	switch from := from.(type) {
 	case map[string]interface{}:
 		for key, value := range from {
-			buf = gatherKeys(value, dotJoin(base, key), buf)
+			into = gatherKeys(value, dotJoin(base, key), into)
 		}
 
 	case []interface{}:
 		for key, value := range from {
-			buf = gatherKeys(value, dotJoin(base, fmt.Sprint(key)), buf)
+			into = gatherKeys(value, dotJoin(base, fmt.Sprint(key)), into)
 		}
 
 	default:
 		if base != "" {
-			buf = append(buf, base)
+			into[base] = struct{}{}
 		}
 	}
 
-	return buf
+	return into
 }

@@ -1,7 +1,6 @@
 package structs
 
 import (
-	"sort"
 	"testing"
 
 	"github.com/zeebo/assert"
@@ -80,13 +79,12 @@ func TestGatherKeys(t *testing.T) {
 	from := d{"foo": 2, "bar": d{"baz": 3, "bif": d{"x": l{1, 2, d{"z": 3}}}}}
 
 	keys := gatherKeys(from, "", nil)
-	sort.Strings(keys)
 
-	assert.DeepEqual(t, keys, []string{
-		"bar.baz",
-		"bar.bif.x.0",
-		"bar.bif.x.1",
-		"bar.bif.x.2.z",
-		"foo",
+	assert.DeepEqual(t, keys, map[string]struct{}{
+		"bar.baz":       {},
+		"bar.bif.x.0":   {},
+		"bar.bif.x.1":   {},
+		"bar.bif.x.2.z": {},
+		"foo":           {},
 	})
 }

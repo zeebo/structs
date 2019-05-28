@@ -12,6 +12,17 @@ func TestDecode(t *testing.T) {
 		l = []interface{}
 	)
 
+	s := func(ks ...string) map[string]struct{} {
+		if len(ks) == 0 {
+			return nil
+		}
+		out := make(map[string]struct{})
+		for _, k := range ks {
+			out[k] = struct{}{}
+		}
+		return out
+	}
+
 	t.Run("Basic", func(t *testing.T) {
 		input := d{
 			"x": d{
@@ -40,8 +51,9 @@ func TestDecode(t *testing.T) {
 
 		res := Decode(input, &output)
 		assert.Error(t, res.Error)
-		assert.DeepEqual(t, res.Missing, []string{"q.f"})
-		assert.DeepEqual(t, res.Broken, []string{"f"})
+		assert.DeepEqual(t, res.Used, s("x.y.0", "x.y.0", "z.0.q", "z.1.q", "z.2.q"))
+		assert.DeepEqual(t, res.Missing, s("q.f"))
+		assert.DeepEqual(t, res.Broken, s("f"))
 		assert.DeepEqual(t, output, into{
 			X: struct{ Y []int }{Y: []int{3}},
 			Z: []map[string]interface{}{{"q": 0}, {"q": 1}, {"q": 2}},
@@ -53,7 +65,10 @@ func TestDecode(t *testing.T) {
 		input := d{"x.a.y": 1, "x.a.z": 2}
 
 		res := Decode(input, &output)
-		assert.DeepEqual(t, res, Result{})
+		assert.NoError(t, res.Error)
+		assert.DeepEqual(t, res.Used, s("x.a.y", "x.a.z"))
+		assert.DeepEqual(t, res.Missing, s())
+		assert.DeepEqual(t, res.Broken, s())
 		assert.Equal(t, output.X["a"].Y, 1)
 		assert.Equal(t, output.X["a"].Z, 2)
 	})
@@ -66,7 +81,10 @@ func TestDecode(t *testing.T) {
 		input := d{"a.x": 1, "b.q": 2, "a.y.f": 3}
 
 		res := Decode(input, &output)
-		assert.DeepEqual(t, res, Result{Missing: []string{"a.y.f", "b.q"}})
+		assert.NoError(t, res.Error)
+		assert.DeepEqual(t, res.Used, s("a.x"))
+		assert.DeepEqual(t, res.Missing, s("a.y.f", "b.q"))
+		assert.DeepEqual(t, res.Broken, s())
 		assert.Equal(t, output["a"].X, 1)
 		assert.Equal(t, output["a"].Y, (*struct{ Z int })(nil))
 		assert.Equal(t, len(output), 1)
@@ -80,7 +98,10 @@ func TestDecode(t *testing.T) {
 		input := d{"x": 1}
 
 		res := Decode(input, &output)
-		assert.DeepEqual(t, res, Result{})
+		assert.NoError(t, res.Error)
+		assert.DeepEqual(t, res.Used, s("x"))
+		assert.DeepEqual(t, res.Missing, s())
+		assert.DeepEqual(t, res.Broken, s())
 		assert.Equal(t, output.X, 1)
 	})
 
@@ -92,7 +113,10 @@ func TestDecode(t *testing.T) {
 		input := d{"x": 1}
 
 		res := Decode(input, &output)
-		assert.DeepEqual(t, res, Result{Missing: []string{"x"}})
+		assert.NoError(t, res.Error)
+		assert.DeepEqual(t, res.Used, s())
+		assert.DeepEqual(t, res.Missing, s("x"))
+		assert.DeepEqual(t, res.Broken, s())
 		assert.Equal(t, output.e1.e2.e3, (*e3)(nil))
 	})
 }
