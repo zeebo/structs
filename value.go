@@ -35,7 +35,8 @@ func setValue(output reflect.Value, input interface{}) (set bool, err error) {
 	case typ == timeType:
 		val, err = cast.ToTimeE(input)
 	case typ == stringSliceType:
-		sval, err := cast.ToStringE(input)
+		var sval string
+		sval, err = cast.ToStringE(input)
 		if err != nil {
 			return false, err
 		}
