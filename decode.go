@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/spf13/cast"
 	"github.com/zeebo/errs"
 )
 
@@ -16,21 +17,21 @@ type Result struct {
 	Broken  map[string]struct{}
 }
 
-// Option controls the operation of a Decode.
-type Option interface {
+// DecodeOption controls the operation of a Decode.
+type DecodeOption interface {
 	private()
 
 	apply(*decodeState)
 }
 
-// optionFunc is an implementation of Option for a func
-type optionFunc func(*decodeState)
+// decodeOptionFunc is an implementation of DecodeOption for a func
+type decodeOptionFunc func(*decodeState)
 
-func (o optionFunc) private()              {}
-func (o optionFunc) apply(ds *decodeState) { o(ds) }
+func (o decodeOptionFunc) private()              {}
+func (o decodeOptionFunc) apply(ds *decodeState) { o(ds) }
 
 // Decode takes values out of input and stores them into output, allocating as necessary.
-func Decode(input map[string]interface{}, output interface{}, opts ...Option) Result {
+func Decode(input map[string]interface{}, output interface{}, opts ...DecodeOption) Result {
 	var ds decodeState
 	for _, opt := range opts {
 		opt.apply(&ds)
@@ -78,6 +79,22 @@ func (d *decodeState) decode(input interface{}, output reflect.Value, base strin
 		keys := make([]string, 0, len(input))
 		for key := range input {
 			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+
+		any := false
+		for _, key := range keys {
+			any = d.decodeKeyValue(key, input[key], output, base) || any
+		}
+		return any
+
+	case map[interface{}]interface{}:
+		// Filter out the string keys and go through them in sorted order to avoid randomness
+		keys := make([]string, 0, len(input))
+		for key := range input {
+			if key, err := cast.ToStringE(key); err == nil {
+				keys = append(keys, key)
+			}
 		}
 		sort.Strings(keys)
 
