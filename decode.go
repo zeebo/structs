@@ -19,11 +19,22 @@ type Result struct {
 // Option controls the operation of a Decode.
 type Option interface {
 	private()
+
+	apply(*decodeState)
 }
+
+// optionFunc is an implementation of Option for a func
+type optionFunc func(*decodeState)
+
+func (o optionFunc) private()              {}
+func (o optionFunc) apply(ds *decodeState) { o(ds) }
 
 // Decode takes values out of input and stores them into output, allocating as necessary.
 func Decode(input map[string]interface{}, output interface{}, opts ...Option) Result {
 	var ds decodeState
+	for _, opt := range opts {
+		opt.apply(&ds)
+	}
 	ds.decode(input, reflect.ValueOf(output), "")
 	return ds.res
 }
