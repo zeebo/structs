@@ -21,6 +21,20 @@ var ( // cached types for comparison
 	stringSliceType = reflect.TypeOf([]string(nil))
 )
 
+func trimByteFront(val string, b byte) string {
+	if len(val) > 0 && val[0] == b {
+		return val[1:]
+	}
+	return val
+}
+
+func trimByteBack(val string, b byte) string {
+	if len(val) > 0 && val[len(val)-1] == b {
+		return val[:len(val)-1]
+	}
+	return val
+}
+
 // setValue does the best job it can attempting to store the input into the output.
 func setValue(output reflect.Value, input interface{}) (set bool, err error) {
 	if !output.CanSet() {
@@ -40,9 +54,15 @@ func setValue(output reflect.Value, input interface{}) (set bool, err error) {
 		if err != nil {
 			return false, err
 		}
-		sval = strings.TrimPrefix(sval, "[")
-		sval = strings.TrimSuffix(sval, "]")
-		val, err = csv.NewReader(strings.NewReader(sval)).Read()
+		sval = trimByteFront(sval, '[')
+		sval = trimByteFront(sval, '"')
+		sval = trimByteBack(sval, ']')
+		sval = trimByteBack(sval, '"')
+		if len(sval) > 0 {
+			val, err = csv.NewReader(strings.NewReader(sval)).Read()
+		} else {
+			val = []string(nil)
+		}
 
 	// if it can be set by string, do that
 	case typ.Implements(setterType):
