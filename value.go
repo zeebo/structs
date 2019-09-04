@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/spf13/cast"
-	"github.com/zeebo/errs"
+	"github.com/zeebo/errs/v2"
 )
 
 type setter interface {
@@ -114,7 +114,7 @@ func setValue(output reflect.Value, input interface{}) (set bool, err error) {
 
 	// ran out of options
 	default:
-		return false, errs.New("can't set input of type %T into output of type %v",
+		return false, errs.Errorf("can't set input of type %T into output of type %v",
 			input, output.Type())
 	}
 

@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/spf13/cast"
-	"github.com/zeebo/errs"
+	"github.com/zeebo/errs/v2"
 )
 
 // Result contains information about the result of a Decode.

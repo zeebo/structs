@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zeebo/errs"
+	"github.com/zeebo/errs/v2"
 )
 
 // stringType is a cached type of strings.
@@ -62,7 +62,7 @@ func (r *reflectWalker) selectField(val reflect.Value, name string) (reflect.Val
 
 	case reflect.Map:
 		if val.Type().Key() != stringType {
-			return reflect.Value{}, errs.New("attempt to walk into invalid map type: %v", val.Type())
+			return reflect.Value{}, errs.Errorf("attempt to walk into invalid map type: %v", val.Type())
 		}
 
 		// Sadly have to allocate a copy of the key to make it settable.
@@ -77,7 +77,7 @@ func (r *reflectWalker) selectField(val reflect.Value, name string) (reflect.Val
 		// Check if the name is an integer.
 		index, err := strconv.Atoi(name)
 		if err != nil {
-			return reflect.Value{}, errs.New("attempt to do numeric index with %q: %v", name, err)
+			return reflect.Value{}, errs.Errorf("attempt to do numeric index with %q: %v", name, err)
 		}
 
 		// Check if we have enough length.
@@ -99,7 +99,7 @@ func (r *reflectWalker) selectField(val reflect.Value, name string) (reflect.Val
 		return nextVal.Index(index), nil
 	}
 
-	return reflect.Value{}, errs.New("attempt to walk into invalid type: %v", val.Type())
+	return reflect.Value{}, errs.Errorf("attempt to walk into invalid type: %v", val.Type())
 }
 
 // searchEmbedded looks through the type finding a field matching name, recursing through
